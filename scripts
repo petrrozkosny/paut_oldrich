@@ -1,0 +1,11 @@
+SET folder_path TO $'''C:\\Users\\petrrozkosny\\Downloads\\paut_data\\paut_data'''
+Folder.GetFiles Folder: folder_path FileFilter: $'''*''' IncludeSubfolders: False FailOnAccessDenied: True SortBy1: Folder.SortBy.NoSort SortDescending1: False SortBy2: Folder.SortBy.NoSort SortDescending2: False SortBy3: Folder.SortBy.NoSort SortDescending3: False Files=> Files
+SET filesCountPDF TO 0
+SET filesCountXLSX TO 0
+LOOP FOREACH CurrentItem IN Files
+    IF EndsWith(CurrentItem.FullName, $'''pdf''', False) THEN
+        Variables.IncreaseVariable Value: filesCount IncrementValue: 1
+        DISABLE Display.ShowMessageDialog.ShowMessage Message: $'''PDF!''' Icon: Display.Icon.None Buttons: Display.Buttons.OK DefaultButton: Display.DefaultButton.Button1 IsTopMost: False ButtonPressed=> ButtonPressed
+    END
+END
+Display.ShowMessageDialog.ShowMessage Message: filesCount Icon: Display.Icon.None Buttons: Display.Buttons.OK DefaultButton: Display.DefaultButton.Button1 IsTopMost: False ButtonPressed=> ButtonPressed2
