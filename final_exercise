@@ -1,0 +1,58 @@
+SET validFolderPath TO $'''FALSE'''
+SET NewVar TO $'''C:\\Users\\petrrozkosny\\Downloads\\paut_data\\paut_data\\pdf files'''
+LOOP WHILE (validFolderPath) = ($'''FALSE''')
+    @@statistics_Input_Text: '1'
+@@statistics_Action_Submit: '1'
+Display.ShowCustomDialog CardTemplateJson: '''{
+  \"type\": \"AdaptiveCard\",
+  \"version\": \"1.4\",
+  \"id\": \"AdaptiveCard\",
+  \"body\": [
+    {
+      \"type\": \"Input.Text\",
+      \"id\": \"Text input\",
+      \"isRequired\": true,
+      \"label\": \"${Text_input_Label}\"
+    }
+  ],
+  \"actions\": [
+    {
+      \"type\": \"Action.Submit\",
+      \"id\": \"Submit\",
+      \"title\": \"${Submit_Title}\"
+    }
+  ]
+}''' CustomFormData=> CustomFormData ButtonPressed=> ButtonPressed @Text_input_Label: $'''Provide folder path''' @Submit_Title: $'''Ok'''
+    SET validFolderPath TO $'''TRUE'''
+    Folder.GetFiles Folder: CustomFormData['Text input'] FileFilter: $'''*.pdf''' IncludeSubfolders: False FailOnAccessDenied: True SortBy1: Folder.SortBy.NoSort SortDescending1: False SortBy2: Folder.SortBy.NoSort SortDescending2: False SortBy3: Folder.SortBy.NoSort SortDescending3: False Files=> Files
+    ON ERROR
+        SET validFolderPath TO $'''FALSE'''
+    END
+END
+Pdf.MergeFiles PDFFiles: Files MergedPDFPath: $'''C:\\Users\\petrrozkosny\\Desktop\\bigPDF.pdf''' IfFileExists: Pdf.IfFileExists.AddSequentialSuffix PasswordDelimiter: $''',''' MergedPDF=> MergedPDF
+Pdf.ExtractTablesFromPDF.ExtractTables PDFFile: MergedPDF MultiPageTables: True SetFirstRowAsHeader: True ExtractedPDFTables=> ExtractedPDFTables
+Excel.LaunchExcel.LaunchUnderExistingProcess Visible: True Instance=> ExcelInstance
+LOOP LoopIndex FROM 0 TO 9 STEP 1
+    BLOCK 'error loading data or writing to excel'
+ON BLOCK ERROR
+GOTO failure
+END
+        WebAutomation.LaunchEdge.LaunchEdge Url: $'''wikipedia.org''' WindowState: WebAutomation.BrowserWindowState.Maximized ClearCache: False ClearCookies: False WaitForPageToLoadTimeout: 60 Timeout: 60 BrowserInstance=> Browser
+        SET city TO ExtractedPDFTables[0].DataTable[LoopIndex]['Město']
+        MouseAndKeyboard.SendKeys.FocusAndSendKeysByInstanceOrHandle WindowInstance: Browser TextToSend: $'''%city%{Return}''' DelayBetweenKeystrokes: 10 SendTextAsHardwareKeys: False
+        WAIT 2
+        WebAutomation.GetDetailsOfWebPage BrowserInstance: Browser DetailsType: WebAutomation.DetailsType.URLAddress Details=> WebPageProperty
+        WebAutomation.CloseWebBrowser BrowserInstance: Browser
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: city Column: 1 Row: LoopIndex + 1
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: WebPageProperty Column: 2 Row: LoopIndex + 1
+        IF Contains(WebPageProperty, $'''search''', False) THEN
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''does not have a wiki page''' Column: 3 Row: LoopIndex + 1
+        ELSE
+            Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''has a wiki page''' Column: 3 Row: LoopIndex + 1
+        END
+    END
+END
+Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+EXIT Code: 0
+LABEL failure
+EXIT Code: 0 ErrorMessage: $'''Flow did not run successfully'''
